@@ -5,6 +5,10 @@ on:
     branches:
       - main
       - master
+  pull_request:
+    branches:
+      - main
+      - master
 
 permissions:
   contents: write
@@ -34,6 +38,7 @@ jobs:
         run: gradle :app:testDebugUnitTest --no-daemon
 
       - name: Calculate Version Tag
+        if: github.event_name == 'push'
         id: versioning
         run: |
           # Fetch latest tag or default to v1.0.0
@@ -70,6 +75,7 @@ jobs:
           echo "Generated tag: ${NEW_TAG} (${BUMP_TYPE} update)"
 
       - name: Setup Keystore for Release Signing
+        if: github.event_name == 'push'
         run: |
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
             echo "Decoding release keystore from secrets..."
@@ -88,15 +94,18 @@ jobs:
           fi
 
       - name: Build Signed Release APK
+        if: github.event_name == 'push'
         run: gradle :app:assembleRelease --no-daemon
 
       - name: Package APK for Release
+        if: github.event_name == 'push'
         run: |
           mkdir -p release-output
           cp app/build/outputs/apk/release/*.apk release-output/LocalNetGuard-${NEW_TAG}.apk
           echo "APK ready at release-output/LocalNetGuard-${NEW_TAG}.apk"
 
       - name: Tag Repository
+        if: github.event_name == 'push'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -104,6 +113,7 @@ jobs:
           git push origin "${NEW_TAG}" || true
 
       - name: Create GitHub Release
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.NEW_TAG }}
