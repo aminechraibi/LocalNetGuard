@@ -40,7 +40,7 @@ class RuleEngine {
         val appPolicy = appPolicies[packet.packageName]
         if (appPolicy != null) {
             if (appPolicy.isInternetBlocked) {
-                return EvaluationResult(RuleAction.BLOCK, "App Policy: Internet Blocked", "Entire internet access revoked for ${appPolicy.appName}")
+                return EvaluationResult(RuleAction.BLOCK, "App Policy: Internet Blocked", "Internet Blocked: Entire internet access revoked for ${appPolicy.appName}")
             }
             if (packet.isWifi && appPolicy.isWifiBlocked) {
                 return EvaluationResult(RuleAction.BLOCK, "App Policy: Wi-Fi Blocked", "Wi-Fi access disabled for ${appPolicy.appName}")
