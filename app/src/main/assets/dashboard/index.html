@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LocalNetGuard - Remote LAN Management Dashboard</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent: #38bdf8;
+            --accent-green: #22c55e;
+            --accent-red: #ef4444;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border-color: #334155;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+        h1 {
+            font-size: 1.5rem;
+            margin: 0;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--accent-green);
+            border: 1px solid var(--accent-green);
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .card h3 {
+            margin-top: 0;
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .card .metric {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 10px 0 0 0;
+            color: var(--text-primary);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        th {
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+        .badge-allowed {
+            color: var(--accent-green);
+            font-weight: bold;
+        }
+        .badge-blocked {
+            color: var(--accent-red);
+            font-weight: bold;
+        }
+        .pairing-box {
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid var(--accent);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        input, button {
+            background: #0f172a;
+            border: 1px solid var(--border-color);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        button {
+            background: var(--accent);
+            color: #0f172a;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛡️ LocalNetGuard LAN Dashboard</h1>
+            <div id="vpn-status" class="status-badge">VPN Status: Active</div>
+        </header>
+
+        <div id="pairing-section" class="pairing-box">
+            <h3>🔐 Pairing Required</h3>
+            <p>Enter 6-digit numeric pairing code displayed on the Android device screen:</p>
+            <input type="text" id="pair-code" placeholder="e.g. 849201" maxlength="6">
+            <button onclick="submitPairing()">Submit Pairing Code</button>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h3>Total Processed Connections</h3>
+                <div class="metric" id="total-conn">--</div>
+            </div>
+            <div class="card">
+                <h3>Threats & Ads Blocked</h3>
+                <div class="metric" style="color: var(--accent-red);" id="blocked-conn">--</div>
+            </div>
+            <div class="card">
+                <h3>LAN Management Port</h3>
+                <div class="metric" style="color: var(--accent);" id="lan-port">8080</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>⚡ Live Network Traffic & Filter Log</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Protocol</th>
+                        <th>Source</th>
+                        <th>Destination</th>
+                        <th>Domain</th>
+                        <th>Status</th>
+                        <th>Matched Policy</th>
+                    </tr>
+                </thead>
+                <tbody id="connections-list">
+                    <tr><td colspan="6" style="text-align:center; color: var(--text-secondary);">Loading network logs...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        async function fetchStatus() {
+            try {
+                const res = await fetch('/api/v1/status');
+                const data = await res.json();
+                document.getElementById('total-conn').innerText = data.totalConnections || '0';
+                document.getElementById('blocked-conn').innerText = data.blockedConnections || '0';
+                document.getElementById('lan-port').innerText = data.serverPort || '8080';
+                document.getElementById('vpn-status').innerText = 'VPN: ' + (data.vpnStatus || 'RUNNING');
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        async function fetchConnections() {
+            try {
+                const res = await fetch('/api/v1/connections');
+                if (res.ok) {
+                    const logs = await res.json();
+                    const tbody = document.getElementById('connections-list');
+                    if (logs.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No recent connections recorded.</td></tr>';
+                        return;
+                    }
+                    tbody.innerHTML = logs.map(l => `
+                        <tr>
+                            <td><strong>${l.protocol}</strong></td>
+                            <td>${l.sourceIp}:${l.sourcePort}</td>
+                            <td>${l.destinationIp}:${l.destinationPort}</td>
+                            <td>${l.domain || '--'}</td>
+                            <td class="${l.status === 'BLOCKED' ? 'badge-blocked' : 'badge-allowed'}">${l.status}</td>
+                            <td>${l.matchedRule}</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        async function submitPairing() {
+            const code = document.getElementById('pair-code').value;
+            const res = await fetch(`/api/v1/auth/pair?code=${code}`, { method: 'POST' });
+            if (res.ok) {
+                alert('Successfully paired device!');
+                document.getElementById('pairing-section').style.display = 'none';
+            } else {
+                alert('Invalid pairing code.');
+            }
+        }
+
+        setInterval(() => {
+            fetchStatus();
+            fetchConnections();
+        }, 3000);
+
+        fetchStatus();
+        fetchConnections();
+    </script>
+</body>
+</html>

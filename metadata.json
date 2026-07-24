@@ -1,0 +1,6 @@
+{
+  "name": "LocalNetGuard",
+  "description": "Android local VPN firewall, HTTP/HTTPS filter, DNS sinkhole, per-app network control, and embedded LAN management dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
